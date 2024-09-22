@@ -1,0 +1,8 @@
+{
+  "name": "r_place_ui",
+  "version": "0.0.1",
+  "private": true,
+  "devDependencies": {
+    "shadow-cljs": "2.28.15"
+  }
+}
