@@ -18,6 +18,7 @@ sequenceDiagram
     B-->>A: WS: Send canvas
     B-->>A: WS: Send canvas updates
     A-->>B: WS: Send canvas update
+```
 
 # Dev setup - WIP
 
