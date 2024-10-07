@@ -21,3 +21,8 @@ sequenceDiagram
 
 # Dev setup - WIP
 
+
+# Stream recordings
+The project is built on a 'watch me code' streams hosted by clojure-camp
+
+- [Session 1](https://www.youtube.com/watch?v=1NkrY9FWsKc)
