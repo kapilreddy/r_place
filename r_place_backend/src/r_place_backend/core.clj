@@ -4,19 +4,46 @@
             [compojure.route :refer [files not-found]]
             [compojure.core :refer [defroutes GET POST DELETE ANY context]]))
 
+(def sample-data {:column 4
+                    :row 4
+                    :color "green"})
+
+(def colors ["#8967B3" "#4F75FF" "#8FD14F" 
+             "#FF6500" "#73EC8B" "#243642"])
+
+(defn random-data
+  [] 
+  (map (fn [i]
+         {:column i
+          :row i
+          :color (rand-nth colors)})
+       (range 20)))
+
+(defonce state (atom []))
+
+(defn on-receive-handler
+  [channel data]
+  (let [{:keys [column row color] :as pixel-data}
+        (read-string data)]
+    (swap! state conj pixel-data)))
+
 (defn chat-handler [req]
-  (http-kit/with-channel req channel              ; get the channel
+  (http-kit/with-channel req channel    ; get the channel
     ;; communicate with client using method defined above
     (http-kit/on-close channel (fn [status]
-                        (println "channel closed")))
+                                 (println "channel closed")))
     (if (http-kit/websocket? channel)
       (println "WebSocket channel")
       (println "HTTP channel"))
-    (http-kit/on-receive channel (fn [data]       ; data received from client
-           ;; An optional param can pass to send!: close-after-send?
-           ;; When unspecified, `close-after-send?` defaults to true for HTTP channels
-           ;; and false for WebSocket.  (send! channel data close-after-send?)
-                          (http-kit/send! channel data))))) ; data is sent directly to the client
+
+    (doseq [pixel-update @state]
+      (http-kit/send! channel
+                      (pr-str pixel-update)))
+    (http-kit/on-receive channel (fn [data] ; data received from client
+                                   ;; An optional param can pass to send!: close-after-send?
+                                   ;; When unspecified, `close-after-send?` defaults to true for HTTP channels
+                                   ;; and false for WebSocket.  (send! channel data close-after-send?)
+                                   (on-receive-handler channel data))))) ; data is sent directly to the client
 
 (defn show-landing-page [req] ;; ordinary clojure function, accepts a request map, returns a response map
   ;; return landing page's html string. Using template library is a good idea:

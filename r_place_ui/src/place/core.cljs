@@ -1,5 +1,6 @@
 (ns place.core
-  (:require [goog.dom :as dom]
+  (:require [cljs.reader :as cljsr]
+            [goog.dom :as dom]
             [goog.events :as events]
             [goog.style :as style]))
 
@@ -39,12 +40,23 @@
     (set! (.-fillStyle ctx) color)
     (.fillRect ctx grid-x grid-y grid-size grid-size)))
 
+(defn canvas-coord->grid-coord
+  [coord grid-size]
+  (* (Math/floor (/ coord grid-size)) grid-size))
+
 (defn draw-pixel [x y color]
-  (let [grid-x (* (Math/floor (/ x grid-size)) grid-size)
-        grid-y (* (Math/floor (/ y grid-size)) grid-size)]
+  (let [grid-x (canvas-coord->grid-coord x grid-size)
+        grid-y (canvas-coord->grid-coord y grid-size)]
     (def l* [grid-x grid-y])
     (set! (.-fillStyle ctx) color)
     (.fillRect ctx grid-x grid-y grid-size grid-size)))
+
+
+(defn send-pixel!
+  [x y color]
+  (.send socket* (pr-str {:column x
+                          :row y
+                          :color color})))
 
 (defn handle-canvas-click [e]
   (let [rect (.getBoundingClientRect canvas)
@@ -55,23 +67,19 @@
                 "#FFFFFF"
                 (:current-color @app-state))]
     (draw-pixel x y color)
+    (send-pixel! (Math/floor (/ x grid-size))
+                 (Math/floor (/ y grid-size))
+                 color)
     (draw-grid)))
 
-(comment
-  (events/listen canvas "click" handle-canvas-click)
+(events/listen canvas "click" handle-canvas-click)
 
-  (events/listen canvas "touchstart"
-                 (fn [e]
-                   (.preventDefault e)
-                   (handle-canvas-click (aget (.-touches e) 0))))
+(defn websocket-message-handler
+    [data]
+    (let [{:keys [column row color]} (cljsr/read-string data)]      
+      (draw-grid-pixel column row color)))
 
-  (events/listen (:brush tools) "click" #(swap! app-state assoc :current-tool :brush))
-  (events/listen (:eraser tools) "click" #(swap! app-state assoc :current-tool :eraser))
-  (events/listen (:color-picker tools) "change"
-                 #(swap! app-state assoc :current-color (.. % -target -value)))
-  )
-
-(comment 
+(do 
   (set! (.-width canvas) 500)
   (set! (.-height canvas) 500)
 
@@ -88,12 +96,24 @@
 
   ;; Draw initial grid
   (draw-grid)
-  )
+  
+
+
+  (def socket* (setup-ws "ws://localhost:8080/ws"
+                         (fn []
+                           (js/console.log "Socket connected"))
+                         (fn [e]
+                           (js/console.log e.data)
+                           (websocket-message-handler e.data)))))
 
 
 (comment 
   (draw-grid-pixel 2 1 "red")
   (draw-grid-pixel 0 0 "red")
+
+  (def data {:column 0
+             :row 1
+             :color "red"})
   )
 
 (defn setup-ws
@@ -105,11 +125,28 @@
           on-message-fn)
     socket))
 
-(comment
-  (def socket* (setup-ws "ws://localhost:8080/ws"
-                         (fn []
-                           (js/console.log "Socket connected"))
-                         (fn [e]
-                           (js/console.log e.data))))
 
-  (.send socket* "pong"))
+(def sample-data {:column 0
+                  :row 1
+                  :color "red"})
+
+
+
+
+(comment
+  (websocket-message-handler (pr-str sample-data))
+
+  
+
+  (.send socket* "pong")
+  (events/listen canvas "touchstart"
+                 (fn [e]
+                   (.preventDefault e)
+                   (handle-canvas-click (aget (.-touches e) 0))))
+
+  (events/listen (:brush tools) "click" #(swap! app-state assoc :current-tool :brush))
+  (events/listen (:eraser tools) "click" #(swap! app-state assoc :current-tool :eraser))
+  (events/listen (:color-picker tools) "change"
+                 #(swap! app-state assoc :current-color (.. % -target -value)))
+  )
+
