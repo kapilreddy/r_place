@@ -21,10 +21,18 @@
 
 (defonce state (atom []))
 
+(defonce all-channels (atom {}))
+
 (defn on-receive-handler
   [channel data]
   (let [{:keys [column row color] :as pixel-data}
         (read-string data)]
+    (doseq [[ch-k ch] @all-channels]
+      (when (not= channel ch)
+        (if (http-kit/open? ch)
+          (http-kit/send! ch
+                         (pr-str pixel-data))
+          (swap! all-channels dissoc ch-k))))
     (swap! state conj pixel-data)))
 
 (defn chat-handler [req]
@@ -35,7 +43,7 @@
     (if (http-kit/websocket? channel)
       (println "WebSocket channel")
       (println "HTTP channel"))
-
+    (swap! all-channels assoc (:start-time req) channel)
     (doseq [pixel-update @state]
       (http-kit/send! channel
                       (pr-str pixel-update)))
