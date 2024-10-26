@@ -68,9 +68,8 @@
                 (:current-color @app-state))]
     (draw-pixel x y color)
     (send-pixel! (Math/floor (/ x grid-size))
-                 (Math/floor (/ y grid-size))
-                 color)
-    (draw-grid)))
+                 Math/floor
+                 color)))
 
 (events/listen canvas "click" handle-canvas-click)
 
@@ -99,12 +98,7 @@
   
 
 
-  (def socket* (setup-ws "ws://localhost:8080/ws"
-                         (fn []
-                           (js/console.log "Socket connected"))
-                         (fn [e]
-                           (js/console.log e.data)
-                           (websocket-message-handler e.data)))))
+  )
 
 
 (comment 
@@ -124,6 +118,13 @@
     (set! (.-onmessage socket)
           on-message-fn)
     socket))
+
+(do (def socket* (setup-ws "ws://localhost:8080/ws"
+                         (fn []
+                           (js/console.log "Socket connected"))
+                         (fn [e]
+                           (js/console.log e.data)
+                           (websocket-message-handler e.data)))))
 
 
 (def sample-data {:column 0
